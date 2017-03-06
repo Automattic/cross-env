@@ -1,5 +1,6 @@
 import {spawn} from 'cross-spawn'
 import commandConvert from './command'
+import isWindows from 'is-windows'
 
 export default crossEnv
 
@@ -8,15 +9,27 @@ const envSetterRegex = /(\w+)=('(.+)'|"(.+)"|(.+))/
 function crossEnv(args) {
   const [command, commandArgs, env] = getCommandArgsAndEnvVars(args)
   if (command) {
-    const proc = spawn(command, commandArgs, {stdio: 'inherit', env})
+    const proc = _spawn(command, commandArgs, {stdio: 'inherit', env})
     process.on('SIGTERM', () => proc.kill('SIGTERM'))
     process.on('SIGINT', () => proc.kill('SIGINT'))
     process.on('SIGBREAK', () => proc.kill('SIGBREAK'))
     process.on('SIGHUP', () => proc.kill('SIGHUP'))
-    proc.on('exit', process.exit)
     return proc
   }
   return null
+}
+
+function _spawn(command, commandArgs, env) {
+  let shellCommand
+  let shellArgs
+  if (isWindows) {
+    shellCommand = process.env.comspec || 'cmd.exe'
+    shellArgs = ['/c', command, ...commandArgs]
+  } else {
+    shellCommand = 'sh' // Can this not exist for some reason?
+    shellArgs = ['-c', command, ...commandArgs]
+  }
+  return spawn(shellCommand, shellArgs, env)
 }
 
 function getCommandArgsAndEnvVars(args) {
